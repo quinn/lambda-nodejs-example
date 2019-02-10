@@ -1,0 +1,135 @@
+---
+  Parameters:
+    "lambdaFunctionName":
+      Type: "String"
+      AllowedPattern: "^[a-zA-Z0-9]+[a-zA-Z0-9-]+[a-zA-Z0-9]+$"
+
+    "stageName":
+      Type: "String"
+      AllowedPattern: "^[a-z0-9]+$"
+
+    "bucketName":
+      Type: "String"
+
+    "bucketKey":
+      Type: "String"
+
+  Resources:
+    "restApi":
+      Type: "AWS::ApiGateway::RestApi"
+      Properties:
+        Name: "api"
+
+    "apiGatewayRootMethod":
+      Type: AWS::ApiGateway::Method
+      Properties:
+        AuthorizationType: NONE
+        HttpMethod: POST
+        ResourceId: !GetAtt "restApi.RootResourceId"
+        RestApiId: !Ref "restApi"
+        Integration:
+          IntegrationHttpMethod: "POST"
+          Type: "AWS_PROXY"
+          Uri: !Sub
+            - "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${lambdaArn}/invocations"
+            - lambdaArn: !GetAtt "lambdaFunction.Arn"
+
+    "optionsMethod":
+      Type: AWS::ApiGateway::Method
+      Properties:
+        AuthorizationType: NONE
+        HttpMethod: OPTIONS
+        ResourceId: !GetAtt "restApi.RootResourceId"
+        RestApiId: !Ref "restApi"
+        Integration:
+          IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers:
+                "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+              method.response.header.Access-Control-Allow-Methods:
+                "'POST,OPTIONS'"
+              method.response.header.Access-Control-Allow-Origin:
+                "'*'"
+            ResponseTemplates:
+              application/json: Empty
+          PassthroughBehavior: WHEN_NO_MATCH
+          RequestTemplates:
+            application/json: '{ "statusCode": 200 }'
+          Type: MOCK
+        MethodResponses:
+        - StatusCode: 200
+          ResponseModels:
+            application/json: Empty
+          ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: true
+              method.response.header.Access-Control-Allow-Methods: true
+              method.response.header.Access-Control-Allow-Origin: true
+
+    "apiGatewayDeployment":
+      Type: "AWS::ApiGateway::Deployment"
+      DependsOn:
+        - apiGatewayRootMethod
+      Properties:
+        RestApiId: !Ref "restApi"
+        StageName: !Ref "stageName"
+
+    "lambdaFunction":
+      Type: "AWS::Lambda::Function"
+      Properties:
+        Code:
+          S3Bucket: !Ref bucketName
+          S3Key: !Ref bucketKey
+        FunctionName: !Ref "lambdaFunctionName"
+        Handler: index.handler
+        MemorySize: 128
+        Role: !GetAtt "lambdaIAMRole.Arn"
+        Runtime: nodejs8.10
+        Timeout: 10
+
+    "lambdaApiGatewayInvoke":
+      Type: "AWS::Lambda::Permission"
+      Properties:
+        Action: "lambda:InvokeFunction"
+        FunctionName: !GetAtt "lambdaFunction.Arn"
+        Principal: "apigateway.amazonaws.com"
+        SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${restApi}/*/POST/"
+
+    "lambdaIAMRole":
+      Type: "AWS::IAM::Role"
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Action:
+                - "sts:AssumeRole"
+              Effect: "Allow"
+              Principal:
+                Service:
+                  - "lambda.amazonaws.com"
+        Policies:
+          - PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Action:
+                    - "logs:CreateLogGroup"
+                    - "logs:CreateLogStream"
+                    - "logs:PutLogEvents"
+                  Effect: "Allow"
+                  Resource:
+                    - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${lambdaFunctionName}:*"
+            PolicyName: "lambda"
+
+    "lambdaLogGroup":
+      Type: "AWS::Logs::LogGroup"
+      Properties:
+        LogGroupName: !Sub "/aws/lambda/${lambdaFunctionName}"
+        RetentionInDays: 90
+
+  Outputs:
+    "apiGatewayInvokeURL":
+      Value: !Sub "https://${restApi}.execute-api.${AWS::Region}.amazonaws.com/${stageName}"
+
+    "lambdaArn":
+      Value: !GetAtt "lambdaFunction.Arn"
+

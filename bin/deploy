@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+
+templatefile=./lambda.cloudformation.yml
+stage=production
+version=$(just build)
+
+aws cloudformation deploy \
+    --template-file=$templatefile \
+    --stack-name=$APP_NAME \
+    --parameter-overrides \
+    	lambdaFunctionName=$APP_NAME \
+    	stageName=$stage \
+    	bucketName=$BUCKET_NAME \
+    	bucketKey=$APP_NAME-$version.zip \
+    --capabilities CAPABILITY_IAM
