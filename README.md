@@ -2,7 +2,7 @@
 
 ## Install Dependencies
  * Install the AWS CLI: `brew install awscli` on a OS X.
- * Install (just runner)[just] Can be installed via
+ * Install [just runner][just] Can be installed via
    homebrew `brew install just` or grab one of the
    [prebuilt binaries][just-binaries].
 
