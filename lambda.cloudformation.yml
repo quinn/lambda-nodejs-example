@@ -45,12 +45,9 @@
           IntegrationResponses:
           - StatusCode: 200
             ResponseParameters:
-              method.response.header.Access-Control-Allow-Headers:
-                "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
-              method.response.header.Access-Control-Allow-Methods:
-                "'POST,OPTIONS'"
-              method.response.header.Access-Control-Allow-Origin:
-                "'*'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+              method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'"
+              method.response.header.Access-Control-Allow-Origin:  "'*'"
             ResponseTemplates:
               application/json: Empty
           PassthroughBehavior: WHEN_NO_MATCH
@@ -70,6 +67,7 @@
       Type: "AWS::ApiGateway::Deployment"
       DependsOn:
         - apiGatewayRootMethod
+        - optionsMethod
       Properties:
         RestApiId: !Ref "restApi"
         StageName: !Ref "stageName"
@@ -121,7 +119,9 @@
             PolicyName: "lambda"
 
     "lambdaLogGroup":
-      Type: "AWS::Logs::LogGroup"
+      Type: AWS::Logs::LogGroup
+      DependsOn:
+        - lambdaFunction
       Properties:
         LogGroupName: !Sub "/aws/lambda/${lambdaFunctionName}"
         RetentionInDays: 90
