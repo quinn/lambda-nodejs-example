@@ -8,7 +8,7 @@ check:
 	aws cloudformation deploy --no-execute-changeset --stack-name $APP_NAME
 
 url:
-	aws cloudformation describe-stacks --stack-name $APP_NAME | grep apiGatewayInvokeURL | awk '{print $3}'
+	aws cloudformation describe-stacks --stack-name $APP_NAME --query 'Stacks[0].Outputs[0].OutputValue' --output text
 
 test:
 	curl -X POST `just url`

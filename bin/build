@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+
+zipfile=build/function.zip
+
+{
+  rm $zipfile
+  cd app ; zip -Xr ../$zipfile . ; cd ..
+
+  version=$(md5 -r $zipfile | awk '{ print $1}')
+  aws s3 cp $zipfile s3://$BUCKET_NAME/$APP_NAME-$version.zip
+} &> /dev/null
+
+echo $version
